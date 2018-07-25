@@ -257,10 +257,16 @@ vector<float> to_single_vector(vector<vector<float> > dataset) {
 }
 
 //converts a multi vector to a matrix of floats
-void redistribute_data(vector<vector<float> > datasetv, float** dataset) {
+void redistribute_data(vector<vector<float> > datasetv, float** dataset , int subspace, int d) {
   for (unsigned int i = 0; i < datasetv.size(); i++) {
     float* x = dataset[i];
-    vector<float> next = datasetv.at( i );
+    vector<float> next ;
+    for (int k=0 ; k<d; k++){
+      int position =1 << k;
+      if ((subspace & position)==position){
+        next.push_back(datasetv[i][k]);
+      }
+    }
     for (unsigned int j = 0; j < datasetv.front().size(); j++) {
       x[j] = next[j];
     }

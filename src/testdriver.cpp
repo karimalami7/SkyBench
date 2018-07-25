@@ -96,12 +96,30 @@ void doPerformanceTest( Config &cfg ) {
   extern uint64_t dt_count_incomp;
 #endif
 
-  float** data = AllocateDoubleArray( n, d );
-  redistribute_data( vvf, data );
-  vvf.clear();
+  //cerr << "d: "<< d<<endl;
+  vector<vector<long>> timeTrack;
+  vector<vector<vector<int>>> results_skycube;
+  for(int subspace=1; subspace < pow(2,d) ; subspace++){
+    //cerr << "subspace: "<<subspace << endl;
+    int card_d=0;
+    for (int i=0 ; i<d; i++){
+      int position =1 << i;
+      if ((subspace & position)==position){
+        //cerr <<"OK position:" << i<<endl;
+        card_d++;
+      }
+    }
+    //cerr << "card_d: " <<card_d <<endl;
+  
+
+  float** data = AllocateDoubleArray( n, card_d );
+  redistribute_data( vvf, data, subspace, d);
+  //vvf.clear();
 
   long msec = 0;
   vector<vector<int> > results;
+  vector<long> timeTrackSubspace;
+
 
   for (uint32_t a = 0; a < cfg.algo.size(); ++a) {
     if ( isMC( cfg.algo[a] ) ) { // Multi-threaded algorithm run
@@ -121,7 +139,7 @@ void doPerformanceTest( Config &cfg ) {
 
           // skyline computation:
           vector<int> res = skyline->Execute();
-
+          timeTrackSubspace.push_back(GetTime() - msec);
 #if COUNT_DT==1
           printf( " %lu", dt_count / n );
 //          printf( " %lu", dt_count_dom / n );
@@ -148,6 +166,7 @@ void doPerformanceTest( Config &cfg ) {
         skyline->Init( data );
 
         vector<int> res = skyline->Execute();
+        timeTrackSubspace.push_back(GetTime() - msec);
 #if COUNT_DT==1
         printf( " %lu", dt_count / n );
 //        printf( " %lu", dt_count_dom / n );
@@ -165,12 +184,36 @@ void doPerformanceTest( Config &cfg ) {
     }
   }
   printf( "\n" );
+  //cerr <<"resultats: "<<results[0].size()<<endl;
+
+  results_skycube.push_back(results);
+
   if ( results.size() > 1 )
     for (uint32_t i = 1; i < results.size(); ++i)
       if ( !CompareTwoLists( results[0], results[i], false ) )
         fprintf( stderr, "ERROR: Skylines of run #%u (|sky|=%lu) "
             "and #%u (|sky|=%lu) do not match!!!\n", 0, results[0].size(), i,
             results[i].size() );
+
+  timeTrack.push_back(timeTrackSubspace);
+
+  } // for each subspace 
+  
+  cerr <<"timeTrack size: " << timeTrack[0].size()<< " time: ";
+
+  for (int l = 0; l< timeTrack[0].size(); l++){
+    int totalTimetrack=0;
+    for (int m = 0 ; m<timeTrack.size(); m++){
+      totalTimetrack+=timeTrack[m][l];
+    }
+    cerr << totalTimetrack <<" ";
+  }
+  cerr <<endl;
+  int skycubeSize=0;
+  for (int l = 0; l< results_skycube.size(); l++){
+      skycubeSize+=results_skycube[l][0].size();
+  }
+  cerr << "skycubeSize: " <<skycubeSize<<endl;
 }
 
 void doVerboseTest( Config &cfg ) {
@@ -197,7 +240,7 @@ void doVerboseTest( Config &cfg ) {
     cfg.pq_size = 1;
 
   float** data = AllocateDoubleArray( n, d );
-  redistribute_data( vvf, data );
+  //redistribute_data( vvf, data );
   vvf.clear();
 
   for (uint32_t a = 0; a < cfg.algo.size(); ++a) {
